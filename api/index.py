@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template_string
 import requests
 import json
 import re
@@ -7,6 +7,131 @@ from datetime import datetime, timedelta
 import pytz
 
 app = Flask(__name__)
+
+# --- HTML TEMPLATE FOR THE MAINFRAME UI ---
+MAINFRAME_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule API Mainframe</title>
+    <style>
+        body {
+            background-color: #0D0D12;
+            color: #00FF41;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            border-bottom: 2px solid #00FF41;
+            padding-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #111118;
+            border: 1px solid #00FF41;
+            box-shadow: 0 0 10px #00FF41;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        input[type="date"], input[type="text"] {
+            background: #000;
+            color: #00FF41;
+            border: 1px solid #00FF41;
+            padding: 10px;
+            font-family: inherit;
+            outline: none;
+        }
+        button {
+            background: #00FF41;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #00CC33;
+            box-shadow: 0 0 8px #00FF41;
+        }
+        pre {
+            background: #000;
+            color: #00FF41;
+            padding: 15px;
+            border: 1px solid #333;
+            overflow-x: auto;
+            max-height: 500px;
+            white-space: pre-wrap;
+        }
+        .terminal-header {
+            margin-top: 0;
+            color: #00FF41;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>// SYSTEM.MAINFRAME //</h1>
+    
+    <div class="container">
+        <div class="controls">
+            <button onclick="fetchAPI('')">Fetch Live (Auto)</button>
+            <input type="date" id="datePicker">
+            <button onclick="fetchCustomDate()">Query Specific Date</button>
+        </div>
+        
+        <p class="terminal-header">Awaiting command...</p>
+        <pre id="output">Initialize connection to view data stream.</pre>
+    </div>
+
+    <script>
+        function setOutput(text) {
+            document.getElementById('output').textContent = text;
+        }
+
+        async function fetchAPI(queryParam) {
+            const url = '/api/schedule' + queryParam;
+            document.querySelector('.terminal-header').textContent = `> EXEC: GET ${url}...`;
+            setOutput("Loading data stream...");
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                setOutput(JSON.stringify(data, null, 2));
+            } catch (err) {
+                setOutput("ERROR: Connection failed.\\n" + err);
+            }
+        }
+
+        function fetchCustomDate() {
+            const dateVal = document.getElementById('datePicker').value;
+            if (!dateVal) {
+                alert("Please select a date first.");
+                return;
+            }
+            fetchAPI('?date=' + dateVal);
+        }
+    </script>
+</body>
+</html>
+"""
 
 def extract_json(decoded_str):
     idx = decoded_str.find('"initialDay":')
@@ -40,12 +165,8 @@ def extract_school_days(decoded_str):
     return None
 
 def get_schedule_html(cookie_value, date_str=None):
-    cookies = {
-        '__Secure-authjs.session-token': cookie_value
-    }
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-    }
+    cookies = {'__Secure-authjs.session-token': cookie_value}
+    headers = {'User-Agent': 'Mozilla/5.0'}
     
     url = 'https://flex.lkgeorge.org/student/schedule'
     if date_str:
@@ -78,64 +199,61 @@ def get_schedule():
     tz = pytz.timezone('America/New_York')
     now = datetime.now(tz)
     
-    # First fetch today (or whatever the default is)
-    html = get_schedule_html(cookie)
+    # Check if user requested a specific date via query params
+    requested_date = request.args.get('date')
+    
+    html = get_schedule_html(cookie, date_str=requested_date)
     if not html:
         return jsonify({"error": "Failed to fetch"})
         
     data, school_days = parse_schedule_html(html)
     
     if data:
-        # Check if we should show the NEXT school day
-        # e.g., if current time is past 15:15 (3:15 PM) on a school day, 
-        # or if today is not a school day (weekend).
-        is_after_school = False
-        today_str = now.strftime("%Y-%m-%d")
-        
-        # Determine last block end time for today
-        if data.get('blocks') and len(data['blocks']) > 0:
-            last_block = data['blocks'][-1]
-            try:
-                end_h, end_m = map(int, last_block['end'].split(':'))
-                end_t = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
-                if now > end_t:
-                    is_after_school = True
-            except:
-                pass
-                
-        if today_str not in (school_days or []) or is_after_school:
-            # We need to fetch the NEXT school day
-            if school_days:
-                next_day = None
-                for d in school_days:
-                    if d > today_str:
-                        next_day = d
-                        break
-                
-                if next_day:
-                    html_next = get_schedule_html(cookie, date_str=next_day)
-                    if html_next:
-                        data_next, _ = parse_schedule_html(html_next)
-                        if data_next:
-                            data = data_next # Swap data out for tomorrow's data!
-        
-        # Calculate current block for whatever day data is showing
+        # If they didn't request a specific date, apply the auto-tomorrow logic
+        if not requested_date:
+            is_after_school = False
+            today_str = now.strftime("%Y-%m-%d")
+            
+            if data.get('blocks') and len(data['blocks']) > 0:
+                last_block = data['blocks'][-1]
+                try:
+                    end_h, end_m = map(int, last_block['end'].split(':'))
+                    end_t = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+                    if now > end_t:
+                        is_after_school = True
+                except:
+                    pass
+                    
+            if today_str not in (school_days or []) or is_after_school:
+                if school_days:
+                    next_day = None
+                    for d in school_days:
+                        if d > today_str:
+                            next_day = d
+                            break
+                    if next_day:
+                        html_next = get_schedule_html(cookie, date_str=next_day)
+                        if html_next:
+                            data_next, _ = parse_schedule_html(html_next)
+                            if data_next:
+                                data = data_next 
+
         current_block = None
         data_date = data.get("date")
+        today_str = now.strftime("%Y-%m-%d")
         
-        if data_date == today_str: # Only highlight active block if the data is for TODAY
+        if data_date == today_str: 
             for b in data.get('blocks', []):
                 try:
                     start_h, start_m = map(int, b['start'].split(':'))
                     end_h, end_m = map(int, b['end'].split(':'))
-                    
                     start_t = now.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
                     end_t = now.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
                     
                     if start_t <= now <= end_t:
                         current_block = b
                         break
-                except Exception:
+                except:
                     continue
                 
         custom_data = {
@@ -143,7 +261,8 @@ def get_schedule():
             "letter_day": data.get("letter"),
             "current_block": current_block,
             "all_blocks": data.get("blocks", []),
-            "showing_future_day": data_date != today_str,
+            "showing_future_day": data_date != today_str and not requested_date,
+            "is_custom_query": requested_date is not None,
             "raw_data": data 
         }
         return jsonify(custom_data)
@@ -152,7 +271,7 @@ def get_schedule():
 
 @app.route('/')
 def home():
-    return jsonify({"status": "running", "endpoint": "/api/schedule"})
+    return render_template_string(MAINFRAME_HTML)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
