@@ -324,6 +324,11 @@ const ORIGIN = location.protocol.startsWith("http") ? "" : "https://schedule-api
 const SCHEDULE = ORIGIN + "/api/schedule";
 const STATE = ORIGIN + "/api/state";
 
+// Lunch isn't in the Flex feed, so the API hands back one long block with
+// lunch buried inside it. This page carves it out; the widget deliberately
+// doesn't. Set to null to turn the carve-out off.
+const LUNCH = { name: "Lunch", start: "12:13", end: "12:43" };
+
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, "0");
 
@@ -334,6 +339,7 @@ let shownDate = null;      // the date actually returned
 let overrideDate = null;   // server-side lock, from /api/state
 let stateReachable = true;
 let clientLog = [];        // things this page did, merged into the console
+let loggedLunch = false;   // only mention the carve-out once per session
 let tickTimer = null;
 
 /* ---------- time ---------- */
@@ -399,7 +405,7 @@ function prettyDate(str, long) {
 
 function normalise(json) {
   const list = json.all_blocks || json.blocks || [];
-  return list.map(b => {
+  const shaped = list.map(b => {
     const s = toMinutes(b.start), e = toMinutes(b.end);
     if (s === null || e === null) return null;
     const cls = (b.classes || [])[0] || null;
@@ -414,6 +420,42 @@ function normalise(json) {
       teacher: cls && cls.teachers && cls.teachers[0] ? cls.teachers[0].name : null
     };
   }).filter(Boolean).sort((a, b) => a.start - b.start);
+  return carveLunch(shaped);
+}
+
+// Split any block that swallows the lunch window into class, lunch, class.
+function carveLunch(list) {
+  if (!LUNCH || !list.length) return list;
+  const ls = toMinutes(LUNCH.start), le = toMinutes(LUNCH.end);
+  if (ls === null || le === null || le <= ls) return list;
+
+  // if the API ever starts returning lunch itself, leave it alone
+  if (list.some(b => /lunch/i.test(b.name) || b.start === ls)) return list;
+  // and don't invent it on a day that doesn't reach lunchtime
+  if (ls < list[0].start || le > list[list.length - 1].end) return list;
+
+  const lunch = { name: LUNCH.name, start: ls, end: le, title: null, room: null, teacher: null, local: true };
+  const out = [];
+  let placed = false, split = null;
+
+  list.forEach(b => {
+    if (b.start >= le || b.end <= ls) { out.push(b); return; }
+    split = b.name;
+    if (ls - b.start >= 2) out.push(Object.assign({}, b, { end: ls }));
+    if (!placed) { out.push(lunch); placed = true; }
+    if (b.end - le >= 2) out.push(Object.assign({}, b, { start: le }));
+  });
+
+  if (!placed) out.push(lunch);
+  out.sort((a, b) => a.start - b.start);
+
+  if (!loggedLunch) {
+    loggedLunch = true;
+    say("client", split
+      ? "Carved " + LUNCH.name + " " + LUNCH.start + "–" + LUNCH.end + " out of " + split + ", the API returns them as one block"
+      : "Added " + LUNCH.name + " " + LUNCH.start + "–" + LUNCH.end + " locally, it isn't in the API response");
+  }
+  return out;
 }
 
 function roomPhrase(room) {
@@ -439,18 +481,52 @@ function say(level, text) {
   renderConsole();
 }
 
+function parseLogTime(str) {
+  if (!str) return null;
+  const direct = new Date(str);
+  if (!isNaN(direct)) return direct;
+  const m = String(str).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (!m) return null;
+  let h = +m[1];
+  const ap = (m[4] || "").toUpperCase();
+  if (ap === "PM" && h < 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, +m[2], +(m[3] || 0));
+}
+
+function levelFromText(text) {
+  const t = String(text).toLowerCase();
+  if (/error|failed|failure|exception|traceback/.test(t)) return "error";
+  if (/override|locked to|lock released/.test(t)) return "override";
+  if (/warn|no classes|missing|falling back|fallback|skipped/.test(t)) return "warn";
+  return "info";
+}
+
 function normaliseLog(entry) {
-  if (typeof entry === "string") return { at: null, level: "info", text: entry };
-  const at = entry.time || entry.timestamp || entry.ts || entry.at || null;
-  const lvl = String(entry.level || entry.type || entry.kind || "info").toLowerCase();
-  const text = entry.message || entry.msg || entry.text || entry.event || JSON.stringify(entry);
-  return {
-    at: at ? new Date(at) : null,
-    level: ["warn", "warning"].includes(lvl) ? "warn"
-      : ["error", "err", "fail"].includes(lvl) ? "error"
-      : lvl.includes("override") ? "override" : "info",
-    text
-  };
+  // entries often arrive as "[11:38:04 AM] API Thinking: ..." — pull the
+  // bracketed time out so the console column isn't a row of dashes
+  if (typeof entry === "string") {
+    const m = entry.match(/^\s*\[([^\]]+)\]\s*/);
+    const text = m ? entry.slice(m[0].length) : entry;
+    return { at: m ? parseLogTime(m[1]) : null, level: levelFromText(text), text };
+  }
+
+  let text = entry.message || entry.msg || entry.text || entry.event || JSON.stringify(entry);
+  let at = entry.time || entry.timestamp || entry.ts || entry.at || null;
+  const inline = String(text).match(/^\s*\[([^\]]+)\]\s*/);
+  if (inline) {
+    if (!at) at = inline[1];
+    text = String(text).slice(inline[0].length);
+  }
+
+  const lvl = String(entry.level || entry.type || entry.kind || "").toLowerCase();
+  const level = ["warn", "warning"].includes(lvl) ? "warn"
+    : ["error", "err", "fail"].includes(lvl) ? "error"
+    : lvl.includes("override") ? "override"
+    : lvl ? "info" : levelFromText(text);
+
+  return { at: at ? parseLogTime(at) : null, level, text };
 }
 
 function renderConsole(serverLogs) {
