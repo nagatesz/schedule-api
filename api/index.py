@@ -36,164 +36,7 @@ def add_log(msg):
         state['logs'] = state['logs'][:30] # Keep last 30 logs
     save_state(state)
 
-# --- HTML TEMPLATE FOR THE MODERN UI ---
-DASHBOARD_HTML = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule API Dashboard</title>
-    <style>
-        body {
-            background-color: #0e0e14;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        h1 { font-size: 24px; font-weight: 600; margin-bottom: 30px; color: #ffffff; }
-        .container {
-            width: 100%; max-width: 900px;
-            background: #1c1c28; border-radius: 12px;
-            padding: 30px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-        }
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #3a1f5c; padding-bottom: 10px; }
-        .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 15px; }
-        input[type="date"] {
-            background: #0e0e14; color: #ffffff; border: 1px solid #3a1f5c;
-            border-radius: 8px; padding: 10px 15px; font-family: inherit; outline: none; color-scheme: dark;
-        }
-        button {
-            background: #3a1f5c; color: #ffffff; border: 1px solid #8b5cf6;
-            border-radius: 8px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
-        }
-        button:hover { background: #8b5cf6; }
-        .danger-btn { background: #1c1c28; border-color: #f7768e; color: #f7768e; }
-        .danger-btn:hover { background: #f7768e; color: #1c1c28; }
-        .terminal-header { color: #9a9aa8; font-size: 13px; font-weight: 500; margin-bottom: 10px; }
-        pre, .logs-box {
-            background: #0e0e14; color: #a9b1d6; padding: 20px; border-radius: 8px;
-            overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5; margin: 0;
-        }
-        .logs-box { height: 200px; color: #7aa2f7; }
-        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; background: #2fae5a; color: #fff;}
-        .status-pill.override { background: #e0af68; color: #000; }
-    </style>
-</head>
-<body>
-    <h1>Schedule API Command Center</h1>
-    
-    <div class="container">
-        <div class="header-row">
-            <h2>Widget Controller</h2>
-            <span id="systemStatus" class="status-pill">AUTO MODE</span>
-        </div>
-        <p style="color: #9a9aa8; font-size: 14px; margin-bottom: 20px;">
-            Force the API (and your iPhone widget) to show a specific day. This overrides the automatic "today/tomorrow" logic.
-        </p>
-        <div class="controls">
-            <input type="date" id="overrideDate">
-            <button onclick="setOverride()">Force Widget to this Date</button>
-            <button class="danger-btn" onclick="clearOverride()">Reset to Auto (Live)</button>
-        </div>
-    </div>
 
-    <div class="container">
-        <div class="header-row">
-            <h2>API Logs & Thinking</h2>
-            <button onclick="refreshLogs()" style="padding: 5px 10px; font-size: 12px;">Refresh Logs</button>
-        </div>
-        <div id="logs" class="logs-box">Loading logs...</div>
-    </div>
-    
-    <div class="container">
-        <h2>Manual Fetch Test</h2>
-        <div class="controls">
-            <button onclick="fetchAPI('')">Fetch Current Output</button>
-            <input type="date" id="datePicker">
-            <button onclick="fetchCustomDate()">Query Specific Date (Test only)</button>
-        </div>
-        <p class="terminal-header" id="statusHeader">Ready.</p>
-        <pre id="output" style="max-height: 400px;">Select a date or fetch live data to view the JSON response.</pre>
-    </div>
-
-    <script>
-        async function refreshLogs() {
-            try {
-                const res = await fetch('/api/state');
-                const data = await res.json();
-                
-                const statusPill = document.getElementById('systemStatus');
-                if (data.override_date) {
-                    statusPill.textContent = `OVERRIDDEN: ${data.override_date}`;
-                    statusPill.className = 'status-pill override';
-                } else {
-                    statusPill.textContent = 'AUTO MODE (Live)';
-                    statusPill.className = 'status-pill';
-                }
-                
-                document.getElementById('logs').innerHTML = data.logs.join('<br>') || 'No logs yet...';
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function setOverride() {
-            const d = document.getElementById('overrideDate').value;
-            if (!d) return alert("Select a date!");
-            await fetch('/api/state', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({override_date: d})
-            });
-            refreshLogs();
-            alert("Widget will now show " + d + " on its next refresh!");
-        }
-
-        async function clearOverride() {
-            await fetch('/api/state', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({override_date: null})
-            });
-            refreshLogs();
-            alert("Widget restored to Auto Mode!");
-        }
-
-        function setOutput(text) { document.getElementById('output').textContent = text; }
-
-        async function fetchAPI(queryParam) {
-            const url = '/api/schedule' + queryParam;
-            document.getElementById('statusHeader').textContent = `GET ${url}`;
-            setOutput("Fetching data...");
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                setOutput(JSON.stringify(data, null, 2));
-                refreshLogs();
-            } catch (err) {
-                setOutput("Error: Connection failed.\\n" + err);
-            }
-        }
-
-        function fetchCustomDate() {
-            const dateVal = document.getElementById('datePicker').value;
-            if (!dateVal) return alert("Please select a date first.");
-            fetchAPI('?date=' + dateVal);
-        }
-
-        // Init
-        refreshLogs();
-        setInterval(refreshLogs, 10000); // refresh logs every 10s
-    </script>
-</body>
-</html>
-"""
 
 def extract_json(decoded_str):
     idx = decoded_str.find('"initialDay":')
@@ -340,7 +183,11 @@ def get_schedule():
 
 @app.route('/')
 def home():
-    return render_template_string(DASHBOARD_HTML)
+    html_path = os.path.join(os.path.dirname(__file__), 'dashboard.html')
+    if os.path.exists(html_path):
+        with open(html_path, 'r', encoding='utf-8') as f:
+            return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
+    return "Dashboard not found", 404
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
