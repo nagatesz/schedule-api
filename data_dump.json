@@ -1,0 +1,264 @@
+{
+  "identifier": "9765",
+  "date": "2026-09-14",
+  "letter": "C",
+  "inSession": true,
+  "label": "C Day",
+  "scheduleName": "Regular",
+  "term": "Q1",
+  "periodsOff": [
+    "2",
+    "6"
+  ],
+  "blocks": [
+    {
+      "name": "Guide Room",
+      "start": "7:50",
+      "end": "7:56",
+      "period": null,
+      "classes": []
+    },
+    {
+      "name": "Block 1",
+      "start": "7:59",
+      "end": "8:52",
+      "period": "3",
+      "classes": [
+        {
+          "sourcedId": "9fab7aea-92fe-45a9-af64-ffef8c0affdd",
+          "title": "ENGLISH 12(1400) SN:2 Per:3",
+          "courseCode": "1400",
+          "section": "2",
+          "days": [
+            "A",
+            "C",
+            "D",
+            "E",
+            "G",
+            "H"
+          ],
+          "daysSource": "master",
+          "room": "114",
+          "teachers": [
+            {
+              "name": "Catherine Caldaroni",
+              "email": "caldaronic@lkgeorge.org",
+              "room": "114",
+              "extension": "1114"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Block 2",
+      "start": "8:55",
+      "end": "9:48",
+      "period": "4",
+      "classes": [
+        {
+          "sourcedId": "studyhall:0002:4",
+          "title": "Study Hall(0002) SN:4 Per:4",
+          "courseCode": "0002",
+          "section": "4",
+          "days": [
+            "B",
+            "C",
+            "D",
+            "F",
+            "G",
+            "H"
+          ],
+          "daysSource": "master",
+          "room": "201",
+          "teachers": []
+        }
+      ]
+    },
+    {
+      "name": "Block 3",
+      "start": "9:51",
+      "end": "10:44",
+      "period": "1",
+      "classes": [
+        {
+          "sourcedId": "ed4c5641-1d24-48d2-922f-ed6f281363e4",
+          "title": "ENVIRONMENTAL SCI & SUSTAINABILITY(3274) SN:1 Per:1",
+          "courseCode": "3274",
+          "section": "1",
+          "days": [
+            "A",
+            "B",
+            "C",
+            "E",
+            "F",
+            "G"
+          ],
+          "daysSource": "master",
+          "room": "010",
+          "teachers": [
+            {
+              "name": "Robert Spath",
+              "email": "spathr@lkgeorge.org",
+              "room": "010",
+              "extension": "1010"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Flex",
+      "start": "10:47",
+      "end": "11:17",
+      "period": "FLEX",
+      "classes": [
+        {
+          "sourcedId": "c1b1ef5e-4ada-4b5a-a76a-94f2cfce68ac",
+          "title": "FLEX TIME(0019) SN:11 Per:FLEX",
+          "courseCode": "0019",
+          "section": "11",
+          "days": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H"
+          ],
+          "daysSource": "master",
+          "room": "LIB1",
+          "teachers": [
+            {
+              "name": "Dara Oravsky",
+              "email": "oravskyd@lkgeorge.org",
+              "room": "Library",
+              "extension": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Block 4",
+      "start": "11:20",
+      "end": "12:43",
+      "period": "7",
+      "classes": [
+        {
+          "sourcedId": "76758f6e-9b14-44b1-b575-eaaa0cce2bfc",
+          "title": "ASSISTED STUDY HALL(9560) SN:5 Per:7",
+          "courseCode": "9560",
+          "section": "5",
+          "days": [
+            "C",
+            "E",
+            "H"
+          ],
+          "daysSource": "master",
+          "room": "117",
+          "teachers": [
+            {
+              "name": "Katie Chapman",
+              "email": "chapmank@lkgeorge.org",
+              "room": "117",
+              "extension": "1117"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Block 5",
+      "start": "12:46",
+      "end": "13:39",
+      "period": "8",
+      "classes": [
+        {
+          "sourcedId": "bcb0aed8-5097-47fb-aef6-46b173a3e3a7",
+          "title": "ACCOUNTING(6300) SN:1 Per:8",
+          "courseCode": "6300",
+          "section": "1",
+          "days": [
+            "B",
+            "C",
+            "D",
+            "F",
+            "G",
+            "H"
+          ],
+          "daysSource": "master",
+          "room": "200",
+          "teachers": [
+            {
+              "name": "Mattie Brassil",
+              "email": "brassilm@lkgeorge.org",
+              "room": "200",
+              "extension": "2200"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Block 6",
+      "start": "13:42",
+      "end": "14:35",
+      "period": "5",
+      "classes": [
+        {
+          "sourcedId": "dc026744-2f3e-416d-a556-a2e3decf325d",
+          "title": "ASSISTED STUDY HALL(9560) SN:4 Per:5",
+          "courseCode": "9560",
+          "section": "4",
+          "days": [
+            "A",
+            "B",
+            "C",
+            "E",
+            "F",
+            "G"
+          ],
+          "daysSource": "master",
+          "room": "117",
+          "teachers": [
+            {
+              "name": "Katie Chapman",
+              "email": "chapmank@lkgeorge.org",
+              "room": "117",
+              "extension": "1117"
+            }
+          ]
+        },
+        {
+          "sourcedId": "studyhall:0002:5",
+          "title": "Study Hall(0002) SN:5 Per:5",
+          "courseCode": "0002",
+          "section": "5",
+          "days": [
+            "A",
+            "B",
+            "C",
+            "E",
+            "F",
+            "G"
+          ],
+          "daysSource": "master",
+          "room": "202",
+          "teachers": []
+        }
+      ]
+    },
+    {
+      "name": "Block 7",
+      "start": "14:35",
+      "end": "15:15",
+      "period": null,
+      "classes": []
+    }
+  ],
+  "unresolved": true,
+  "known": true
+}
