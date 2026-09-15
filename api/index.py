@@ -15,91 +15,100 @@ MAINFRAME_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule API Mainframe</title>
+    <title>Schedule API Dashboard</title>
     <style>
         body {
-            background-color: #0D0D12;
-            color: #00FF41;
-            font-family: 'Courier New', Courier, monospace;
+            background-color: #0e0e14;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 40px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
         h1 {
-            border-bottom: 2px solid #00FF41;
-            padding-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #ffffff;
         }
         .container {
             width: 100%;
             max-width: 800px;
-            background: #111118;
-            border: 1px solid #00FF41;
-            box-shadow: 0 0 10px #00FF41;
-            padding: 20px;
-            border-radius: 5px;
+            background: #1c1c28;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
         .controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 25px;
             flex-wrap: wrap;
+            align-items: center;
         }
         input[type="date"], input[type="text"] {
-            background: #000;
-            color: #00FF41;
-            border: 1px solid #00FF41;
-            padding: 10px;
+            background: #0e0e14;
+            color: #ffffff;
+            border: 1px solid #3a1f5c;
+            border-radius: 8px;
+            padding: 10px 15px;
             font-family: inherit;
             outline: none;
+            color-scheme: dark;
+        }
+        input[type="date"]:focus {
+            border-color: #8b5cf6;
         }
         button {
-            background: #00FF41;
-            color: #000;
-            border: none;
-            padding: 10px 15px;
-            font-weight: bold;
+            background: #3a1f5c;
+            color: #ffffff;
+            border: 1px solid #8b5cf6;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
             font-family: inherit;
             cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         button:hover {
-            background: #00CC33;
-            box-shadow: 0 0 8px #00FF41;
-        }
-        pre {
-            background: #000;
-            color: #00FF41;
-            padding: 15px;
-            border: 1px solid #333;
-            overflow-x: auto;
-            max-height: 500px;
-            white-space: pre-wrap;
+            background: #8b5cf6;
         }
         .terminal-header {
             margin-top: 0;
-            color: #00FF41;
-            font-size: 0.9em;
+            color: #9a9aa8;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+        pre {
+            background: #0e0e14;
+            color: #a9b1d6;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            max-height: 500px;
+            font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
         }
     </style>
 </head>
 <body>
 
-    <h1>// SYSTEM.MAINFRAME //</h1>
+    <h1>Schedule API Dashboard</h1>
     
     <div class="container">
         <div class="controls">
-            <button onclick="fetchAPI('')">Fetch Live (Auto)</button>
+            <button onclick="fetchAPI('')">Fetch Live Data</button>
             <input type="date" id="datePicker">
             <button onclick="fetchCustomDate()">Query Specific Date</button>
         </div>
         
-        <p class="terminal-header">Awaiting command...</p>
-        <pre id="output">Initialize connection to view data stream.</pre>
+        <p class="terminal-header" id="statusHeader">Ready.</p>
+        <pre id="output">Select a date or fetch live data to view the JSON response.</pre>
     </div>
 
     <script>
@@ -109,14 +118,14 @@ MAINFRAME_HTML = """
 
         async function fetchAPI(queryParam) {
             const url = '/api/schedule' + queryParam;
-            document.querySelector('.terminal-header').textContent = `> EXEC: GET ${url}...`;
-            setOutput("Loading data stream...");
+            document.getElementById('statusHeader').textContent = `GET ${url}`;
+            setOutput("Fetching data...");
             try {
                 const response = await fetch(url);
                 const data = await response.json();
                 setOutput(JSON.stringify(data, null, 2));
             } catch (err) {
-                setOutput("ERROR: Connection failed.\\n" + err);
+                setOutput("Error: Connection failed.\\n" + err);
             }
         }
 
