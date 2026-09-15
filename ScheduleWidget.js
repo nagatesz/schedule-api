@@ -5,6 +5,10 @@
 const SITE = "https://schedule-api-eta.vercel.app/";
 const API = "https://schedule-api-eta.vercel.app/api/schedule";
 
+// Lunch isn't in the Flex feed, so we carve it out directly in the widget
+// to match the website controller.
+const LUNCH = { name: "Lunch", start: "12:13", end: "12:43" };
+
 const BG = new Color("#0E0E14");
 const CARD = new Color("#1C1C28");
 const LINE = new Color("#2C2C3C");
@@ -18,9 +22,6 @@ const WHITE = new Color("#FFFFFF");
 
 // ---------------------------------------------------------------- time
 
-// "7:50" -> minutes past midnight. An hour under 6 is treated as afternoon,
-// since no school block starts at 1 AM, so "1:20" and "13:20" both land at
-// 1:20 PM. If the API always sends 24-hour times this never fires.
 function toMinutes(hhmm) {
   const m = String(hhmm || "").trim().match(/^(\d{1,2}):(\d{2})/);
   if (!m) return null;
@@ -86,32 +87,47 @@ function shapeBlock(b) {
   };
 }
 
+function carveLunch(list) {
+  if (!LUNCH || !list.length) return list;
+  const ls = toMinutes(LUNCH.start), le = toMinutes(LUNCH.end);
+  if (ls === null || le === null || le <= ls) return list;
+
+  if (list.some(b => /lunch/i.test(b.name) || b.start === ls)) return list;
+  if (ls < list[0].start || le > list[list.length - 1].end) return list;
+
+  const lunch = { name: LUNCH.name, start: ls, end: le, title: null, room: null, teacher: null };
+  const out = [];
+  let placed = false;
+
+  list.forEach(b => {
+    if (b.start >= le || b.end <= ls) { out.push(b); return; }
+    if (ls - b.start >= 2) out.push(Object.assign({}, b, { end: ls }));
+    if (!placed) { out.push(lunch); placed = true; }
+    if (b.end - le >= 2) out.push(Object.assign({}, b, { start: le }));
+  });
+
+  if (!placed) out.push(lunch);
+  out.sort((a, b) => a.start - b.start);
+  return out;
+}
+
 async function loadSchedule() {
-  const req = new Request(API);
+  // Add timestamp query to bypass iOS HTTP caching
+  const req = new Request(API + "?_t=" + Date.now());
   req.timeoutInterval = 12;
   const json = await req.loadJSON();
   const raw = json.all_blocks || json.blocks || [];
-  const blocks = raw.map(shapeBlock).filter(b => b !== null).sort((a, b) => a.start - b.start);
+  const blocks = carveLunch(raw.map(shapeBlock).filter(b => b !== null).sort((a, b) => a.start - b.start));
   return {
     date: json.date || null,
     letter: json.letter_day || json.day || null,
-    current: json.current_block ? shapeBlock(json.current_block) : null,
     blocks: blocks
   };
 }
 
-// Trust the server's current_block when it lines up with a block we know
-// about, otherwise work it out from the device clock.
 function resolveNow(data) {
   const n = nowMinutes();
-  let active = null;
-
-  if (data.current && data.current.start !== null) {
-    active = data.blocks.find(b => b.start === data.current.start && b.end === data.current.end) || data.current;
-    if (n >= active.end || n < active.start) active = null;
-  }
-  if (!active) active = data.blocks.find(b => n >= b.start && n < b.end) || null;
-
+  const active = data.blocks.find(b => n >= b.start && n < b.end) || null;
   const upcoming = data.blocks.filter(b => b.start > n);
   return { now: n, active: active, next: upcoming[0] || null, upcoming: upcoming };
 }
@@ -177,9 +193,6 @@ function dayHeader(widget, data, small) {
   return row;
 }
 
-// Right alignment lives on the text element, not the stack: WidgetStack has
-// centerAlignContent / topAlignContent / bottomAlignContent only. Pushing
-// with a spacer plus rightAlignText() is what actually works.
 function rightText(stack, text, font, color) {
   const t = stack.addText(text);
   t.font = font;
@@ -347,7 +360,6 @@ function buildLarge(data, state) {
   heroCard(w, state, false);
   w.addSpacer(9);
 
-  // show what's ahead, and one block already gone for context
   const idx = state.active
     ? data.blocks.findIndex(b => b.start === state.active.start)
     : data.blocks.findIndex(b => b.start > state.now);
